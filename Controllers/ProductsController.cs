@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BuscarProducto.Data;
 using BuscarProducto.Model;
@@ -16,51 +16,40 @@ namespace BuscarProducto.Controllers
             _db = db;
         }
 
-        /// <summary>
-        /// Lista todos los productos.
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Producto>>> GetAll()
         {
-            var items = await _db.Productos.ToListAsync();
+            var items = await _db.Productos
+                .Include(p => p.Categoria)
+                .Include(p => p.Marca)
+                .ToListAsync();
             return Ok(items);
         }
 
-        /// <summary>
-        /// Obtiene un producto por su Id.
-        /// </summary>
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Producto>> GetById(int id)
         {
-            var producto = await _db.Productos.FindAsync(id);
+            var producto = await _db.Productos
+                .Include(p => p.Categoria)
+                .Include(p => p.Marca)
+                .FirstOrDefaultAsync(p => p.Id == id);
             if (producto == null)
                 return NotFound();
             return Ok(producto);
         }
 
-        /// <summary>
-        /// Crea un nuevo producto (el Id siempre lo asigna la BD).
-        /// </summary>
         [HttpPost]
         public async Task<ActionResult<Producto>> Create([FromBody] Producto nuevo)
         {
             if (nuevo == null)
                 return BadRequest();
 
-            // Forzamos que EF genere un nuevo Id
             nuevo.Id = 0;
-
             _db.Productos.Add(nuevo);
             await _db.SaveChangesAsync();
-
-            // Devolvemos 201 Created con la ruta al recurso
             return CreatedAtAction(nameof(GetById), new { id = nuevo.Id }, nuevo);
         }
 
-
-        /// <summary>
-        /// Actualiza un producto existente.
-        /// </summary>
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] Producto actualizado)
         {
@@ -76,9 +65,6 @@ namespace BuscarProducto.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// Elimina un producto.
-        /// </summary>
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -91,25 +77,27 @@ namespace BuscarProducto.Controllers
             return NoContent();
         }
 
-        /// <summary>
-        /// Busca productos por nombre, categoría y/o rango de precio.
-        /// </summary>
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<Producto>>> Search(
-            [FromQuery] string? name,
-            [FromQuery] string? category,
+            [FromQuery] string? nombre,
+            [FromQuery] string? categoria,
+            [FromQuery] string? marca,
             [FromQuery] decimal? minPrecio,
             [FromQuery] decimal? maxPrecio)
         {
-            var query = _db.Productos.AsQueryable();
+            var query = _db.Productos
+                .Include(p => p.Categoria)
+                .Include(p => p.Marca)
+                .AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(name))
-                query = query.Where(p =>
-                    EF.Functions.Like(p.Name, $"%{name}%"));
+            if (!string.IsNullOrWhiteSpace(nombre))
+                query = query.Where(p => EF.Functions.Like(p.Nombre, $"%{nombre}%"));
 
-            if (!string.IsNullOrWhiteSpace(category))
-                query = query.Where(p =>
-                    p.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrWhiteSpace(categoria))
+                query = query.Where(p => EF.Functions.Like(p.Categoria.Nombre, $"%{categoria}%"));
+
+            if (!string.IsNullOrWhiteSpace(marca))
+                query = query.Where(p => p.Marca != null && EF.Functions.Like(p.Marca.Nombre, $"%{marca}%"));
 
             if (minPrecio.HasValue)
                 query = query.Where(p => p.Precio >= minPrecio.Value);
