@@ -1,0 +1,14 @@
+### Búsqueda sin filtros
+GET https://localhost:5001/api/products/search
+
+### Filtrar por nombre
+GET https://localhost:5001/api/products/search?name=Laptop
+
+### Filtrar por categoría
+GET https://localhost:5001/api/products/search?category=Electrónica
+
+### Filtrar por rango de precio
+GET https://localhost:5001/api/products/search?minPrecio=10&maxPrecio=50
+
+### Combinado
+GET https://localhost:5001/api/products/search?name=ta&category=Hogar&minPrecio=5
